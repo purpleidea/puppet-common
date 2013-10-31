@@ -1,0 +1,118 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+Run puppet again if notified to do so
+
+This script is only executed by a puppet exec type. When run, it forks and then
+waits for the parent process (puppet) to exit. It then runs puppet "again",
+with the same arguments it was originally started with.
+
+The exec type for "again" is already provided. To activate it, you notify it:
+
+	include again
+	sometype { 'foo':
+		notify => Exec['again'],	# notify it like this
+	}
+
+This is particularly useful if you know that when one of your types runs, it
+*will* need another puppet execution to finish building. Sadly, for certain
+complex puppet modules, this is unavoidable. You can however make sure to avoid
+infinite loops, which will just waste system resources.
+"""
+# Run puppet again if notified to do so
+# Copyright (C) 2012-2013+ James Shubin
+# Written by James Shubin <james@shubin.ca>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+import time
+import errno
+
+DELAY = 0	# wait this many seconds after puppet exit before running again
+
+def merge(a, b):			# merge two hashes and return the union
+	r = a.copy()
+	r.update(b)
+	return r
+
+def is_running(pid):
+	"""
+	os.waitpid() may not work if the process is not a child of the current
+	process. In that case, using os.kill(pid, 0) may indeed be the best
+	solution. Note that, in general, there are three likely outcomes of
+	calling os.kill() on a process:
+
+	* If the process exists and belongs to you, the call succeeds.
+	* If the process exists but belong to another user, it throws an
+	OSError with the errno attribute set to errno.EPERM.
+	* If the process does not exist, it throws an OSError with the errno
+	attribute set to errno.ESRCH.
+	"""
+	try:
+		os.kill(pid, 0)
+	except OSError as e:
+		if e.errno == errno.ESRCH:
+			return False
+	return True
+
+pid = os.getpid()		# my pid
+ppid = os.getppid()		# parent pid
+
+# parse parent cmdline
+with open("/proc/%d/cmdline" % ppid, 'r') as f:
+	cmdline = f.read()
+argv = cmdline.split("\0")	# separated by nulls (the: ^@ character in vim)
+if argv[-1] == '': argv.pop()	# remove empty element at end of list if exists
+
+# parse parent environ
+with open("/proc/%d/environ" % ppid, 'r') as f:
+	environ = f.read()
+
+env = environ.split("\0")
+if env[-1] == '': env.pop()	# as above, there is a trailing null to remove!
+env = map(lambda x: {x.split('=')[0]: '='.join(x.split('=')[1:])}, env)	# list!
+env = reduce(lambda a,b: merge(a,b), env)	# merge the hash list into hash
+
+# TODO: do a sanity check to verify that we've got a valid puppet cmdline...
+
+# fork a child process. return 0 in the child and the child’s process id in the
+# parent. if an error occurs OSError is raised.
+try:
+	fork = os.fork()	# TODO: forkpty() instead ?
+
+except OSError, e:
+	print >> sys.stderr, "Error forking: %s" % str(e)
+	sys.exit(1)
+
+# branch
+if fork == 0:			# child
+	# wait for ppid to exit...
+	while is_running(ppid):
+		time.sleep(1)
+
+	# optionally delay before starting puppet again
+	if DELAY > 0:
+		time.sleep(int(DELAY))
+
+	# now run puppet the same way it ran in cmdline
+	# NOTE: env is particularly important or puppet breaks :(
+	os.execvpe(argv[0], argv, env)		# this command does not return!
+
+else:				# parent
+	print "pid: %d will try to puppet again..." % fork
+	sys.exit(0)				# let puppet exit successfully!
+
+# vim: ts=8
