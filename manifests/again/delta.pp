@@ -1,4 +1,4 @@
-# Common puppet utilities module by James
+# Run puppet again if notified to do so
 # Copyright (C) 2012-2013+ James Shubin
 # Written by James Shubin <james@shubin.ca>
 #
@@ -15,9 +15,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'frag/*.pp'
+# NOTE: see ../again.pp for the delta code
 
-class common {
-
-
-}
+# vim: ts=8

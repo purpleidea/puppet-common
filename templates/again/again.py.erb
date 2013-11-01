@@ -39,7 +39,9 @@ infinite loops, which will just waste system resources.
 import os
 import sys
 import time
+import math
 import errno
+import argparse
 
 DELAY = 0	# wait this many seconds after puppet exit before running again
 LOCKFILE = '/var/lib/puppet/state/agent_catalog_run.lock'	# lockfile path
@@ -76,6 +78,13 @@ def is_locked():
 	# TODO: is there a more reliable way to do this ? This is sort of racy.
 	return os.path.isfile(LOCKFILE)
 
+parser = argparse.ArgumentParser(description="Utility used by Puppet Exec['again'].")
+parser.add_argument('--delta', dest='delta', action='store', type=int, required=False)
+# start delta timer immediately, instead of waiting till puppet finishes...
+parser.add_argument('--start-timer-now', dest='start_timer_now', action='store_true', default=False, required=False)
+args = parser.parse_args()
+
+start = time.time()		# TODO: use time.monotonic() if exists
 service = False			# are we running as a service ?
 pid = os.getpid()		# my pid
 ppid = os.getppid()		# parent pid
@@ -136,13 +145,38 @@ if fork == 0:			# child
 		while is_running(ppid):
 			time.sleep(1)
 
+	if not args.start_timer_now:
+		start = time.time()	# TODO: use time.monotonic() if exists
+
 	# wait for any agent runs to finish...
 	while is_locked():
 		time.sleep(1)
 
+	if service:	# we need to wait for is_locked to end first...
+		if not args.start_timer_now:
+			start = time.time()	# TODO: use time.monotonic() if exists
+
 	# optionally delay before starting puppet again
 	if DELAY > 0:
 		time.sleep(int(DELAY))
+
+	# wait out the --delta timer
+	while True:
+		delta = time.time() - start	# time elapsed
+		timeleft = args.delta - delta	# time left
+		if int(timeleft) <= 0:
+			break
+
+		time.sleep(int(math.ceil(timeleft)))	# this much time left
+
+	# wait for any agents to finish running, now that we waited for timers!
+	# NOTE: if puppet starts running immediately after this spinlock ended,
+	# but before our exec call runs, then when our exec runs puppet it will
+	# exit right away due to the puppet lock. this is a race condition, but
+	# it isn't a problem because the effect of having puppet run right away
+	# after this spinlock, will be successful, albeit by different means...
+	while is_locked():
+		time.sleep(1)
 
 	# now run puppet the same way it ran in cmdline
 	# NOTE: env is particularly important or puppet breaks :(

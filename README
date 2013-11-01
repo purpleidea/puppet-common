@@ -13,6 +13,7 @@ Module specific notes:
 * Some of the functionality is so useful, that this imports types directly.
 
 Dependencies:
+* puppetlabs-stdlib (required)
 * my puppet-puppet module (optional)
 
 
