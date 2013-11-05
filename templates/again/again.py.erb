@@ -79,7 +79,7 @@ def is_locked():
 	return os.path.isfile(LOCKFILE)
 
 parser = argparse.ArgumentParser(description="Utility used by Puppet Exec['again'].")
-parser.add_argument('--delta', dest='delta', action='store', type=int, required=False)
+parser.add_argument('--delta', dest='delta', action='store', type=int, required=False, default=0)
 # start delta timer immediately, instead of waiting till puppet finishes...
 parser.add_argument('--start-timer-now', dest='start_timer_now', action='store_true', default=False, required=False)
 args = parser.parse_args()
