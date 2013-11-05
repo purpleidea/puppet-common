@@ -54,33 +54,33 @@ class common::again {
 	}
 }
 
-# NOTE: splitting this into a separate file didn't work properly in this module
-define common::again::delta(
-	$delta = 0,
-	# start timer counting now! (default is to start when puppet finishes!)
-	$start_timer_now = false
-) {
-	include common::vardir
-	include common::again
+## NOTE: splitting this into a separate file didn't work properly in this module
+#define common::again::delta(
+#	$delta = 0,
+#	# start timer counting now! (default is to start when puppet finishes!)
+#	$start_timer_now = false
+#) {
+#	include common::vardir
+#	include common::again
 
-	#$vardir = $::common::vardir::module_vardir	# with trailing slash
-	$vardir = regsubst($::common::vardir::module_vardir, '\/$', '')
+#	#$vardir = $::common::vardir::module_vardir	# with trailing slash
+#	$vardir = regsubst($::common::vardir::module_vardir, '\/$', '')
 
-	$valid_start_timer_now = $start_timer_now ? {
-		true => '--start-timer-now',
-		default => '',
-	}
+#	$valid_start_timer_now = $start_timer_now ? {
+#		true => '--start-timer-now',
+#		default => '',
+#	}
 
-	$arglist = ["--delta ${delta}", "${valid_start_timer_now}"]
-	$args = join(delete($arglist, ''), ' ')
+#	$arglist = ["--delta ${delta}", "${valid_start_timer_now}"]
+#	$args = join(delete($arglist, ''), ' ')
 
-	# notify this command whenever you want to trigger another puppet run!
-	exec { "again-delta-${name}":
-		command => "${vardir}/again/again.py ${args}",
-		logoutput => on_failure,
-		refreshonly => true,	# run whenever someone requests it!
-		require => File["${vardir}/again/again.py"],
-	}
-}
+#	# notify this command whenever you want to trigger another puppet run!
+#	exec { "again-delta-${name}":
+#		command => "${vardir}/again/again.py ${args}",
+#		logoutput => on_failure,
+#		refreshonly => true,	# run whenever someone requests it!
+#		require => File["${vardir}/again/again.py"],
+#	}
+#}
 
 # vim: ts=8
