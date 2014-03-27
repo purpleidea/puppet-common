@@ -29,12 +29,14 @@ define common::again::delta(
 	#$vardir = $::common::vardir::module_vardir	# with trailing slash
 	$vardir = regsubst($::common::vardir::module_vardir, '\/$', '')
 
+	$valid_delta = inline_template('<%= [Fixnum, String].include?(@delta.class) ? @delta.to_i : 0 %>')
+
 	$valid_start_timer_now = $start_timer_now ? {
 		true => '--start-timer-now',
 		default => '',
 	}
 
-	$arglist = ["--delta ${delta}", "${valid_start_timer_now}"]
+	$arglist = ["--delta ${valid_delta}", "${valid_start_timer_now}"]
 	$args = join(delete($arglist, ''), ' ')
 
 	# notify this command whenever you want to trigger another puppet run!
