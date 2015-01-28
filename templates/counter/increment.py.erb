@@ -25,6 +25,21 @@ This script is usually only executed by a puppet exec type.
 import sys
 if len(sys.argv) != 2: sys.exit(1)
 
+# parse the commandline, and don't run the increment if --noop is used :)
+pid = os.getpid()		# my pid
+ppid = os.getppid()		# parent pid
+
+# parse parent cmdline
+with open("/proc/%d/cmdline" % ppid, 'r') as f:
+	cmdline = f.read()
+argv = cmdline.split("\0")	# separated by nulls (the: ^@ character in vim)
+if argv[-1] == '': argv.pop()	# remove empty element at end of list if exists
+
+# TODO: does the noop detection work when we run as a service ? (probably not!)
+if '--noop' in argv:
+	sys.exit(0)
+
+# now do the actual incremental work...
 f = open(sys.argv[1], 'r')
 a = [l.strip() for l in f.readlines() if l.strip() != '']
 f.close()
