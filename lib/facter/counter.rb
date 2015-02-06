@@ -54,15 +54,17 @@ if not(counterdir.nil?) and not File.directory?(counterdir)
 	Dir::mkdir(counterdir)
 end
 
+value = 0	# default value to use if file doesn't exist
 # create the fact if the counter file contains a valid int, or if it's empty: 0
 if not(counter_simple.nil?) and File.exist?(counter_simple)
+	# an empty file will output a value of 0 with this idiomatic line...
 	value = File.open(counter_simple, 'r').read.strip.to_i	# read into int
-	Facter.add('common_counter_simple') do
-		#confine :operatingsystem => %w{CentOS, RedHat, Fedora}
-		setcode {
-			value
-		}
-	end
+end
+Facter.add('common_counter_simple') do
+	#confine :operatingsystem => %w{CentOS, RedHat, Fedora}
+	setcode {
+		value
+	}
 end
 
 # vim: ts=8
